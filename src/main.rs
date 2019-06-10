@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::io::{self, Read};
+use std::sync::{Mutex, Arc};
+use std::thread;
 
 fn main() -> Result<(), io::Error> {
     let input = strip_punctuation(read_from_stdin()?);
@@ -10,20 +12,36 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn word_frequencies(words: Vec<&str>) -> HashMap<&str, u32> {
-    let mut word_frequencies: HashMap<&str, u32> = HashMap::new();
+const THREADS: u8 = 4;
 
-    for word in words {
-        word_frequencies
-            .entry(word)
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
+fn word_frequencies(words: Vec<&str>) -> HashMap<&str, u32> {
+    let mut word_frequencies: Arc<Mutex<HashMap<&str, u32>>> = Arc::new(Mutex::new(HashMap::new()));
+    let mut handles = vec![];
+    let words_for_threads = words.chunks(words.len() / THREADS as usize);
+    for words in words_for_threads {
+        let word_frequencies = Arc::clone(&word_frequencies);
+        let handle = thread::spawn(move || {
+            for word in words {
+                word_frequencies
+                    .lock()
+                    .unwrap()
+                    .entry(word)
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
+            }
+        });
+        handles.push(handle);
     }
-    word_frequencies
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    *word_frequencies.lock().unwrap()
 }
 
 fn sort(word_frequencies: HashMap<&str, u32>) -> Vec<(&str, u32)> {
-    let mut sorted_word_frequencies: Vec<(&str, u32)> = Vec::new();
+    let mut sorted_word_frequencies: Vec<(&str, u32)> = vec![];
     for (word, frequency) in word_frequencies {
         sorted_word_frequencies.push((word, frequency));
     }
