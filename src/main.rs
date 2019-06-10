@@ -4,24 +4,31 @@ use std::io::{self, Read};
 fn main() -> Result<(), io::Error> {
     let input = strip_punctuation(read_from_stdin()?);
     let words: Vec<&str> = input.split_whitespace().collect();
+    for (word, frequency) in sort(word_frequencies(words)) {
+        println!("{}: {}", word, frequency)
+    }
+    Ok(())
+}
+
+fn word_frequencies(words: Vec<&str>) -> HashMap<&str, u32> {
     let mut word_frequencies: HashMap<&str, u32> = HashMap::new();
+
     for word in words {
         word_frequencies
             .entry(word)
             .and_modify(|count| *count += 1)
             .or_insert(1);
     }
+    word_frequencies
+}
 
+fn sort(word_frequencies: HashMap<&str, u32>) -> Vec<(&str, u32)> {
     let mut sorted_word_frequencies: Vec<(&str, u32)> = Vec::new();
     for (word, frequency) in word_frequencies {
         sorted_word_frequencies.push((word, frequency));
     }
-    sorted_word_frequencies.sort_by(|a, b| { b.1.cmp(&a.1) });
-
-    for (word, frequency) in sorted_word_frequencies {
-        println!("{}: {}", word, frequency)
-    }
-    Ok(())
+    sorted_word_frequencies.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted_word_frequencies
 }
 
 fn strip_punctuation(input: String) -> String {
